@@ -1,9 +1,9 @@
-create_schema_query = """
-CREATE schema IF NOT EXISTS test
+drop_table_query = f"""
+DROP TABLE {{}};
 """
 
 create_expenses_query = """
-CREATE TABLE IF NOT EXISTS test.expenses (
+CREATE TABLE IF NOT EXISTS expenses_tmp (
     id VARCHAR(256)
   , amount FLOAT
   , date DATE
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS test.expenses (
 """
 
 update_expenses_query = f"""
-INSERT INTO test.expenses (id, amount, date, created, modified, description, account, category, completed, deleted)
+INSERT INTO expenses_tmp (id, amount, date, created, modified, description, account, category, completed, deleted)
 VALUES (
     {{id}}
   , {{amount}}

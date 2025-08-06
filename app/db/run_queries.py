@@ -53,3 +53,6 @@ class DataBase:
 
     def drop_table(self, table):
         self.execute_query(drop_table_query.format(table))
+
+    def get_most_recent_date(self):
+        return self.execute_query(get_recent_date_query)

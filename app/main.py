@@ -7,7 +7,10 @@ from config import *
 if __name__ == '__main__':
 
     # get most recent entries
-    # -- catch updated transactions somehow
+    db = DataBase()
+    most_recent_entry = db.get_most_recent_date()
+    if most_recent_entry[0][0]:
+        START_DATE = dt.strftime(most_recent_entry[0][0], '%Y-%m-%d')
 
     # retrieve entries from toshl API
     entries = fetch_entries(
@@ -18,7 +21,6 @@ if __name__ == '__main__':
 
     # update database entries
     # -- for every transaction add to the db
-    db = DataBase()
     db.update_expenses(entries)
 
     # launch UI to get transaction decision

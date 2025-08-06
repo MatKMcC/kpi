@@ -1,4 +1,5 @@
 from datetime import datetime as dt
+from dateutil.relativedelta import relativedelta
 
 from api.toshl_api_call import fetch_entries
 from db.run_queries import DataBase
@@ -7,7 +8,10 @@ from config import *
 if __name__ == '__main__':
 
     # get most recent entries
-    # -- catch updated transactions somehow
+    db = DataBase()
+    most_recent_entry = db.get_most_recent_date()
+    if most_recent_entry[0][0] is not None:
+        START_DATE = dt.strftime(most_recent_entry[0][0] + relativedelta(days=-1), '%Y-%m-%d')
 
     # retrieve entries from toshl API
     entries = fetch_entries(
@@ -18,7 +22,6 @@ if __name__ == '__main__':
 
     # update database entries
     # -- for every transaction add to the db
-    db = DataBase()
     db.update_expenses(entries)
 
     # launch UI to get transaction decision

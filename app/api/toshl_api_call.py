@@ -2,7 +2,6 @@ import requests
 from datetime import datetime as dt
 from datetime import timezone as tz
 
-
 def clean_entries(entry):
     created = dt.fromisoformat(entry.get('created')[:-1]).astimezone(tz.utc)
     created = dt.strftime(created, '%Y-%m-%d %H:%M:%S')
@@ -19,6 +18,7 @@ def clean_entries(entry):
         , 'deleted': entry.get('deleted')}
 
 def fetch_entries(api_url, access_token, start_date, end_date=None):
+
     headers = {
         'Authorization': f'Bearer {access_token}'
     }

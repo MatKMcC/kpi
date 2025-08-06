@@ -14,12 +14,12 @@ class DataBase:
                 database='kpi',          # Replace with your database name
                 user='rubicon',             # Replace with your MySQL username
                 password='')             # Set your MySQL password
+
+            # setup data tables
+            self.execute_query(create_expenses_query.format('expenses'))
+
         except Error as e:
             print(f"Error while connecting to PostgreSQL: {e}")
-
-    def __del__(self):
-        self.drop_table("expenses_tmp")
-        self.close()
 
     def close(self):
         if self.connection:
@@ -35,24 +35,29 @@ class DataBase:
         cursor = self.connection.cursor()
         cursor.execute(query, params)
         self.connection.commit()
+        try:
+            return cursor.fetchall()
+        except:
+            return []
 
     # insert new expenses
     def update_expenses(self, expenses):
-        if not self.connection:
-            print("Cursor is not available")
-            return
         try:
             n_expenses = 0
             for expense in expenses:
-                self.execute_query(create_expenses_query)
                 self.execute_query(self.sql_string_conversion(update_expenses_query), expense)
                 n_expenses += 1
             print(f"Updated {n_expenses} expenses")
         except Error as e:
             print(f"Error updating expenses: {e}")
 
-    def drop_table(self, table):
-        self.execute_query(drop_table_query.format(table))
+        # self.execute_query(merge_expenses_query)
 
     def get_most_recent_date(self):
         return self.execute_query(get_recent_date_query)
+
+    def drop_table(self, table):
+        self.execute_query(drop_table_query.format(table))
+
+    def __del__(self):
+        self.close()

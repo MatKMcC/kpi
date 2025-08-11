@@ -16,7 +16,8 @@ class DataBase:
                 password='')             # Set your MySQL password
 
             # setup data tables
-            self.execute_query(create_expenses_query.format('expenses'))
+            self.execute_query(create_expenses_query)
+            self.execute_query(create_metadata_query)
 
         except Error as e:
             print(f"Error while connecting to PostgreSQL: {e}")
@@ -55,6 +56,10 @@ class DataBase:
 
     def get_most_recent_date(self):
         return self.execute_query(get_recent_date_query)
+
+    def join_metadata(self):
+        self.drop_table("expenses_metadata")
+        return self.execute_query(join_medata_query)
 
     def drop_table(self, table):
         self.execute_query(drop_table_query.format(table))

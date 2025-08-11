@@ -1,9 +1,9 @@
 drop_table_query = f"""
-DROP TABLE {{}};
+DROP TABLE IF EXISTS {{}};
 """
 
 create_expenses_query = f"""
-CREATE TABLE IF NOT EXISTS {{}} (
+CREATE TABLE IF NOT EXISTS expenses (
     id VARCHAR(256) PRIMARY KEY
   , amount FLOAT
   , date DATE
@@ -12,13 +12,20 @@ CREATE TABLE IF NOT EXISTS {{}} (
   , description VARCHAR(256)
   , account VARCHAR(256)
   , category VARCHAR(256)
-  , completed BOOLEAN
   , deleted BOOLEAN
 );
 """
 
+create_metadata_query = f"""
+CREATE TABLE IF NOT EXISTS metadata (
+    id VARCHAR(256) PRIMARY KEY
+  , status VARCHAR(256)
+  , payback_period INT
+);
+"""
+
 update_expenses_query = f"""
-INSERT INTO expenses (id, amount, date, created, modified, description, account, category, completed, deleted)
+INSERT INTO expenses (id, amount, date, created, modified, description, account, category, deleted)
 VALUES (
     {{id}}
   , {{amount}}
@@ -28,7 +35,6 @@ VALUES (
   , {{desc}}
   , {{account}}
   , {{category}}
-  , {{completed}}
   , {{deleted}})
 ON CONFLICT (id) DO UPDATE SET
     amount = EXCLUDED.amount
@@ -38,8 +44,26 @@ ON CONFLICT (id) DO UPDATE SET
   , description = EXCLUDED.description
   , account = EXCLUDED.account
   , category = EXCLUDED.category
-  , completed = EXCLUDED.completed
   , deleted = EXCLUDED.deleted
+;
+"""
+
+join_medata_query = """
+CREATE TABLE IF NOT EXISTS expenses_metadata AS 
+SELECT
+    e.id
+  , e.amount
+  , e.date
+  , e.created 
+  , e.description
+  , e.account
+  , e.category
+  , m.status
+  , m.payback_period
+FROM expenses e
+INNER JOIN metadata m
+  ON e.id = m.id
+WHERE NOT e.deleted
 ;
 """
 

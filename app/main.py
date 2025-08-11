@@ -19,9 +19,13 @@ if __name__ == '__main__':
       , access_token = API_TOKEN
       , start_date = START_DATE
       , end_date = dt.strftime(dt.today(), format='%Y-%m-%d'))
+    print(f"Entries received from API: {len(entries):,}")
 
     # update database entries
     # -- for every transaction add to the db
     db.update_expenses(entries)
+
+    # add in existing metadata
+    db.join_metadata()
 
     # launch UI to get transaction decision

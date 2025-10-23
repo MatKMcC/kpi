@@ -1,11 +1,13 @@
 import psycopg2
+from dateutil.relativedelta import relativedelta
 from psycopg2 import sql, Error
 from .queries import *
+from .util import *
 import re
 
 class DataBase:
     """Database Connection Manager"""
-    def __init__(self):
+    def __init__(self, start_date):
         self.connection = None
         try:
             # Establish the connection
@@ -18,6 +20,9 @@ class DataBase:
             # setup data tables
             self.execute_query(create_expenses_query)
             self.execute_query(create_metadata_query)
+            self.create_dates_table(start_date)
+            self.start_date = start_date
+
 
         except Error as e:
             print(f"Error while connecting to PostgreSQL: {e}")
@@ -57,6 +62,17 @@ class DataBase:
     def get_most_recent_date(self):
         return self.execute_query(get_recent_date_query)
 
+    def create_dates_table(self, start_date):
+        # Just in case script doesn't complete next time
+        self.drop_table('report_dates')
+        self.drop_table('report_dates_tmp')
+        end_date = from_date(to_date(start_date) + relativedelta(years=1))
+        self.execute_query(create_report_dates_tmp_query.format(start_date=start_date, end_date=end_date))
+        self.execute_query(update_report_dates_01_day_query.format(start_date=start_date, end_date=end_date))
+        self.execute_query(update_report_dates_07_day_query)
+        self.execute_query(update_report_dates_28_day_query)
+        self.execute_query(create_report_dates_query.format(start_date=start_date, end_date=end_date))
+
     def join_metadata(self):
         self.drop_table("expenses_metadata")
         return self.execute_query(join_medata_query)
@@ -65,4 +81,5 @@ class DataBase:
         self.execute_query(drop_table_query.format(table))
 
     def __del__(self):
+        self.drop_table('report_dates_tmp')
         self.close()

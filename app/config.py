@@ -3,6 +3,6 @@ import os
 
 load_dotenv()
 
-TOSHL_API_URL = 'https://api.toshl.com'
+API_URL = 'https://api.ynab.com/v1'
 API_TOKEN = os.getenv('API_TOKEN')
 START_DATE = '2025-01-01'

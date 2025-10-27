@@ -18,11 +18,11 @@ class DataBase:
                 password='')             # Set your MySQL password
 
             # setup data tables
-            self.execute_query(create_expenses_query)
+            self.execute_query(create_entries_query)
             self.execute_query(create_metadata_query)
+            self.execute_query(create_server_knowledge_query)
             self.create_dates_table(start_date)
             self.start_date = start_date
-
 
         except Error as e:
             print(f"Error while connecting to PostgreSQL: {e}")
@@ -47,20 +47,23 @@ class DataBase:
             return []
 
     # insert new expenses
-    def update_expenses(self, expenses):
+    def update_entries(self, entries):
         try:
-            n_expenses = 0
-            for expense in expenses:
-                self.execute_query(self.sql_string_conversion(update_expenses_query), expense)
-                n_expenses += 1
-            print(f"Updated {n_expenses} expenses")
+            counts = 0
+            for entry in entries:
+                self.execute_query(self.sql_string_conversion(update_entries_query), entry)
+                counts += 1
+            print(f"Updated {counts} entries")
         except Error as e:
-            print(f"Error updating expenses: {e}")
+            print(f"Error updating entries: {e}")
 
-        # self.execute_query(merge_expenses_query)
+    def get_last_knowledge_of_server(self):
+        return self.execute_query(get_last_knowledge_of_server_query)
 
-    def get_most_recent_date(self):
-        return self.execute_query(get_recent_date_query)
+    def update_server_knowledge(self, server_knowledge):
+        return self.execute_query(update_server_knowledge_query.format(
+            timestamp=dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+          , server_knowledge=server_knowledge))
 
     def create_dates_table(self, start_date):
         # Just in case script doesn't complete next time

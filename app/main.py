@@ -4,6 +4,7 @@ from dateutil.relativedelta import relativedelta
 from api.ynab_api_call import fetch_entries
 from db.run_queries import DataBase
 from config import *
+import subprocess
 
 if __name__ == '__main__':
 
@@ -29,3 +30,4 @@ if __name__ == '__main__':
     db.join_metadata()
 
     # launch UI to get transaction decision
+    subprocess.run(['streamlit', 'run', 'ui/ui.py'])

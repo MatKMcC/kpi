@@ -7,6 +7,7 @@ from matplotlib.colors import ListedColormap
 import matplotlib.dates as mdates
 import matplotlib.ticker as mticker
 from dateutil.relativedelta import relativedelta
+from sqlalchemy import create_engine
 
 from scipy import stats
 import numpy as np
@@ -125,23 +126,9 @@ def retrieve_query(query):
     conn = create_conn(DB)
     cursor = conn.cursor()
     cursor.execute(query)
-    try:
-        data = cursor.fetchall()
-        column_names = [i[0] for i in cursor.description]
-        df = pd.DataFrame(data, columns=column_names)
-        conn.close()
-
-        # decode binary data
-        for el in df:
-            if type(df[el][0]) == bytearray:
-                df[el] = df[el].apply(lambda el: el.decode('utf-8') if el is not None else el)
-
-        return df
-
-    except KeyError:
-        return None
-
-
+    connection_string = 'postgresql+psycopg2://rubicon@localhost:5432/kpi'
+    engine = create_engine(connection_string)
+    return pd.read_sql(query, engine)
 
 def dashboard(config):
     st.title("Project Kiwi")
@@ -246,8 +233,6 @@ def dashboard(config):
             treatment[['treatment']].to_sql('treatment', CONNECTION_STRING, index=True, if_exists='replace')
             time.sleep(3)
             st.rerun()
-
-
 
     # Generate Data For Sleep Duration Visualizations
     query = """
@@ -413,7 +398,7 @@ def create_kpi_plot():
     q = f"""
     with payment_schedule as (
         select *
-        from expenses_metadata
+        from entries_metadata
         where status = 'payback')
 
       , tbl as (
@@ -438,6 +423,7 @@ def create_kpi_plot():
     """
 
     df = retrieve_query(q)
+    df = df.fillna(0)
     df['total_allowances'] = df['total_allowances'].astype('float')
 
     # declare working variables
@@ -492,7 +478,7 @@ def create_over_under_plot():
     q = f"""
     with payment_schedule as (
         select *
-        from expenses_metadata
+        from entries_metadata
         where status = 'payback')
 
     select
@@ -573,7 +559,7 @@ def create_over_under_plot_short():
     q = f"""
     with payment_schedule as (
         select *
-        from expenses_metadata
+        from entries_metadata
         where status = 'payback')
 
     select
@@ -652,7 +638,7 @@ def create_over_under_plot_short():
 def summary_statistics():
     q = f"""
     select
-        description
+        payee_name
       , payback_period
       , ('{TODAY}' - date) + 1 days_paid
       , payback_amount
@@ -661,7 +647,7 @@ def summary_statistics():
       , amount
       , date
       , final_payment_date
-    from expenses_metadata
+    from entries_metadata
     where status = 'payback'
       and '{TODAY}' between date and final_payment_date
     """
@@ -671,68 +657,6 @@ def summary_statistics():
     total_expenses = ongoing_expenses.shape[0]
     remaining_expenses = ongoing_expenses['amount_due'].sum()
     daily_allotment = ongoing_expenses['payback_amount'].sum()
-
-    q = f"""
-    with payment_schedule as (
-        select *
-        from expenses_metadata
-        where status = 'payback')
-
-      , tbl as (
-        select
-            rd.report_date
-          , sum(1) transactions
-          , sum(payback_amount) payback_amount
-        from report_dates rd
-        left join payment_schedule ps
-          on rd.report_date between ps.date and ps.final_payment_date
-        where period_name = '01 Day'
-        group by 1)
-
-      , agg as (
-        select
-            report_date
-          , sum(1) over (order by report_date) days
-          , {ALLOWANCE} allowance
-          , {ALLOWANCE} * sum(1) over (order by report_date) total_allowances
-          , -1 * payback_amount expenses
-          , -1 * sum(payback_amount) over (order by report_date) total_expenses
-        from tbl)
-
-      , first_positive_date as (
-        select min(days) days
-        from agg
-        where report_date >= '{TODAY}'
-          and total_allowances > total_expenses)
-
-    select 
-        report_date
-      , 'today' dim
-      , days
-      , allowance
-      , total_allowances
-      , expenses
-      , total_expenses
-    from agg
-    where report_date = '{TODAY}'
-    union
-    select
-        a.report_date
-      , 'balanced' dim
-      , a.days
-      , a.allowance
-      , a.total_allowances
-      , a.expenses
-      , a.total_expenses
-    from agg a
-    inner join first_positive_date fpd
-      on a.days = fpd.days
-    ;
-    """
-
-    days_to_balance = retrieve_query(q)
-    current_date = days_to_balance['days'].iloc[0]
-    balanced_date = days_to_balance['days'].iloc[1]
 
     st.text(
     f"""
@@ -750,7 +674,7 @@ def daily_expense_breakdown():
 
     q = f"""
     select
-        description
+        payee_name
       , payback_period
       , ('{query_date}' - date) + 1 days_paid
       , payback_amount
@@ -759,7 +683,7 @@ def daily_expense_breakdown():
       , amount
       , date
       , final_payment_date
-    from expenses_metadata
+    from entries_metadata
     where status = 'payback'
       and '{query_date}' between date and final_payment_date
     """
@@ -771,7 +695,7 @@ def daily_expense_breakdown():
     remaining_spend = ALLOWANCE + ongoing_expenses['payback_amount'].sum()
     remaining_spend_legend = remaining_spend
     remaining_spend = remaining_spend if remaining_spend > 0 else 0
-    plot_df = ongoing_expenses[['date', 'description', 'payback_amount']]
+    plot_df = ongoing_expenses[['date', 'payee_name', 'payback_amount']]
     plot_df['payback_amount'] = plot_df['payback_amount'] * -1
     plot_df['color'] = ['grey' if el != date else 'red' for el in plot_df['date'].values.flatten()]
     plot_df['rank'] = [3 if el != date else 2 for el in plot_df['date'].values.flatten()]
@@ -825,9 +749,9 @@ def top_50_expenses():
     q = """
         select
             date
-                , description
+                , payee_name
                 , amount
-        from expenses_metadata
+        from entries_metadata
         where status = 'payback'
         order by abs(amount) desc
             limit 50 \
@@ -843,7 +767,7 @@ def expenses_being_paid_off():
 
     q = f"""
     select
-        description
+        payee_name
       , payback_period
       , ('{query_date}' - date) + 1 days_paid
       , payback_amount
@@ -852,13 +776,13 @@ def expenses_being_paid_off():
       , amount
       , date
       , final_payment_date
-    from expenses_metadata
+    from entries_metadata
     where status = 'payback'
       and '{query_date}' between date and final_payment_date
     """
 
     ongoing_expenses = retrieve_query(q)
-    display_df = ongoing_expenses[['date', 'description', 'amount', 'amount_due', 'final_payment_date']].sort_values(
+    display_df = ongoing_expenses[['date', 'payee_name', 'amount', 'amount_due', 'final_payment_date']].sort_values(
         'amount_due')
     display_df['amount_due'] = display_df['amount_due'].apply(lambda el: f'${-1 * el:,.0f}')
     display_df['amount'] = display_df['amount'].apply(lambda el: f'${-1 * el:,.0f}')
@@ -869,9 +793,9 @@ def expenses_in_last_week():
     q = f"""
     select
         date
-      , description
+      , payee_name
       , amount
-    from expenses_metadata
+    from entries_metadata
     where status = 'payback'
       and date between '{today - relativedelta(days=14)}' and '{today}'
     order by date
@@ -883,9 +807,9 @@ def pending_expenses():
     q = """
         select
             date
-                , description
+                , payee_name
                 , amount
-        from expenses_metadata
+        from entries_metadata
         where status = 'pending'
             limit 10 \
         """
@@ -900,9 +824,6 @@ def pending_expenses():
 def launch_dashboard(pth):
     subprocess.run(['streamlit', 'run',pth])
 
-def new_dashboard():
-    print('test')
-
 def current_date_total_spend(date):
     q = f"""
     select 
@@ -913,21 +834,22 @@ def current_date_total_spend(date):
              then final_payment_date::date
              else '{date}'::date end - date + 1 days_paid_back
       , payback_amount
-    from expenses_metadata
+    from entries_metadata
     where status = 'payback'
       and date <= '{date}') ali
     """
     df = retrieve_query(q)
-    return df['payback_amount'].iloc[0]
+    return df['payback_amount'].iloc[0] if df['payback_amount'].iloc[0] is not None else 0.0
 
 def amount_allocated_to_payback(date):
     q = f"""
     select sum(payback_amount) payback_amount
-    from expenses_metadata
+    from entries_metadata
     where status = 'payback'
       and '{date}' between date and final_payment_date
     """
     df = retrieve_query(q)
+
     return -1 * df['payback_amount'].sum()
 
 def total_historical_spend(date):

@@ -1,6 +1,9 @@
 import psycopg2
 from dateutil.relativedelta import relativedelta
 from psycopg2 import sql, Error
+from sqlalchemy import create_engine
+from psycopg2.extras import RealDictCursor
+
 from .queries import *
 from .util import *
 import re
@@ -16,7 +19,8 @@ class DataBase:
                 database='kpi',          # Replace with your database name
                 user='rubicon',             # Replace with your MySQL username
                 password='')             # Set your MySQL password
-
+            self.connection_string = 'postgresql+psycopg2://rubicon@localhost:5432/kpi'
+            self.engine = create_engine(self.connection_string)
             # setup data tables
             self.execute_query(create_entries_query)
             self.execute_query(create_metadata_query)
